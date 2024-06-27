@@ -5,11 +5,17 @@
 
 LiquidCrystal_I2C lcd(0x27,16,2);  // set the LCD address to 0x27 for a 16 chars and 2 line display
 
-const int wordCount = 100;
-const int switchPin = 14;
-int one_at_a_time = 0;
+#define MAX_WORD_COUNT 100
 
-String vocabulary[wordCount] = {
+const int switchPin = 14; // This is labeled D5 on the board
+const int removeWordPin = 12; // this is labeled as D6 on the board
+const int groundPin1 = 15; // the wemos d1 has only 1 ground pin, used by the screen. setting an additional to LOW to use with the switch. This is labeled D8 on the board
+const int groundPin2 = 13; // another ground pin, to use with the "remove word" button. this is D7 on the board
+int one_at_a_time = 0;
+int removeIndex = 0;
+int randomIndex = -1;
+
+String vocabulary[MAX_WORD_COUNT] = {
   "a", "about", "all", "am", "an", "and", "are", "as", "at", "be", "been", "but", "by", 
   "called", "can", "come", "could", "day", "did", "do", "down", "each", "find", "first", 
   "for", "from", "get", "go", "had", "has", "have", "he", "her", "him", "his", "how", 
@@ -21,10 +27,17 @@ String vocabulary[wordCount] = {
   "will", "with", "words", "would", "write", "you", "your"
 };
 
+int currentWordCount = 100;
+
 void setup()
 {
   randomSeed(analogRead(0));
+  pinMode(groundPin1, OUTPUT);
+  digitalWrite(groundPin1, LOW);
+  pinMode(groundPin2, OUTPUT);
+  digitalWrite(groundPin2, LOW);
   pinMode(switchPin, INPUT_PULLUP);
+  pinMode(removeWordPin, INPUT_PULLUP);
   lcd.init();                      // initialize the lcd 
   lcd.backlight();
   lcd.setCursor(0,0);
@@ -36,15 +49,38 @@ void setup()
 
 void loop()
 {
+  //switchPin and removeWordPin are normally high until and unless the button is pressed
   if (digitalRead(switchPin) == LOW && one_at_a_time == 0) {
-  int randomIndex = random(0, wordCount);
+  randomIndex = random(0, currentWordCount);
+
   delay(750 );
   lcd.clear();
   lcd.setCursor(0,0);
   lcd.print(vocabulary[randomIndex]);
+  removeIndex = randomIndex;
   one_at_a_time = 1;
   }
   if (digitalRead(switchPin) == HIGH) {
     one_at_a_time = 0;
+  }
+  if (digitalRead(removeWordPin) == LOW && one_at_a_time == 0 && currentWordCount != 0) {
+      // code to remove using removeIndex goes here and decrement wordcount goes here
+      lcd.clear();
+      lcd.setCursor(0,0);
+      lcd.print("Removed " + vocabulary[removeIndex]);
+      delay(3000);
+      //shift elements one to the left
+      for (int i = removeIndex; i < currentWordCount - 1; i++)
+      {
+        vocabulary[i] = vocabulary[i + 1];
+      }
+      //decriment the word count by 1
+      vocabulary[currentWordCount -1 ] = "";
+      currentWordCount = currentWordCount - 1;
+  }
+  if (currentWordCount == 0) {
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("No more words!");
   }
 }
